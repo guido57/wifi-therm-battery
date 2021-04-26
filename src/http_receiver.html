@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head><meta name='viewport' content='width=device-width'>
+<title>WIFI Thermometer</title>
+</head>
+
+<body>
+
+<h1>This is your WIFI Thermometer</h1>
+<p>You are connected through the wifi network: TIM-18373419</p>
+<p>Temperature is -127.00 ^C</p>
+<p>Voltage is 3.60 Volts</p>
+<form method='POST' action='settingssave'>Send temperature to:<br/>IP Address: <input type='text' name='th_IP' minlength='7' maxlength='15' size='15' pattern='^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$' value='192.168.1.69'><br>
+TCP port: <input type='text' name='port' value='2048'><br>
+if it succeeds -> goto deep sleep after 10 seconds (to give time to change config!)<br/>otherwise      -> retry after 10 seconds<br/>Deep sleep (seconds): <input type='text' name='sleep_secs' value='60'><br><br />
+<input id='id_submit' type='submit' value='Save'/>
+</form>
+<p>You may want to <a href='/wifi'>config the wifi connection</a>.</p>
+
+</body>
+
+</html>

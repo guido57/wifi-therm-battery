@@ -1,21 +1,13 @@
-# Funny Spectrum (audio spectrum viewed by colors)
+# WiFi Battery Powered Temperature Sensor
 
-This is an Internet Radio receiver based on ESP32 (D1 Mini),  PCM5102 I2S DAC and WS2812 to display the audio spectrum by colors.
+This is a WiFi Thermometer
 
 ## Show
 
 [![Watch the video](https://github.com/guido57/Funny-Spectrum/blob/master/pictures/Internet%20Radio%20ESP32%20I2S%20PCM5102%20WS2812.PNG)](https://youtu.be/EDWJl283ymY)
 
 ## Overview
-It is mostly forked from https://github.com/schreibfaul1/ESP32-audioI2S but I added something very distinctive:
 
-1) a local web server with two pages: 
-- one to change the WIFI credentials 
-- and the other one to set up to 5 different internet radio stations
-
-2) a button to go to the next radio station 
-
-3) two WS2812 12 LEDs rings to display the audio spectrum 
 
 ## Schematics
 

@@ -1,6 +1,8 @@
 #include "captive_portal.h"
 #include <TaskScheduler.h>
 Scheduler myScheduler;
+
+#include <EspNow.h>
 //=== CaptivePortal stuff ================
 String softAP_ssid;
 String softAP_password  = APPSK;
@@ -15,13 +17,15 @@ const long  gmtOffset_sec = 3600; // GMT + 1
 const int   daylightOffset_sec = 3600;
 
 /* Don't set these wifi credentials. They are configurated at runtime and stored on EEPROM */
+/*
 String ssid;
 String password;
 IPAddress thermostat_IP(0,0,0,0); 
 int port;
 int sleep_seconds;
 int no_conn_count;
-
+String MQTTMainTopic;
+*/
 // DNS server
 //const byte DNS_PORT = 53;
 //DNSServer dnsServer;
@@ -32,8 +36,6 @@ WebServer web_server(80);
 /* Soft AP network parameters */
 IPAddress apIP(192, 168, 4, 1);
 IPAddress netMsk(255, 255, 255, 0);
-/** Should I connect to WLAN asap? */
-boolean connect;
 
 /** Last time I tried to connect to WLAN */
 unsigned long lastConnectTry = 0;
@@ -46,12 +48,13 @@ unsigned int status = WL_IDLE_STATUS;
 
 // =====================================================
 wl_status_t connectWifi() {
-    Serial.println("Connecting as wifi client...");
-    WiFi.disconnect();
-    //WiFi.mode(WIFI_STA);
-    Serial.print("ssid=");Serial.println(ssid);
-    Serial.print("password=");Serial.println(password);
-    WiFi.begin(ssid.c_str(), password.c_str());
+    Serial.printf("Connecting as wifi client at %lu millis\r\n",millis());
+    WiFi.disconnect(true);  // delete old config
+    WiFi.persistent(false); //Avoid to store Wifi configuration in Flash
+    WiFi.mode(WIFI_AP_STA);
+    Serial.print("ssid=");Serial.println(espNow->settings.entries.ssid);
+    Serial.print("password=");Serial.println(espNow->settings.entries.pwd);
+    WiFi.begin(espNow->settings.entries.ssid, espNow->settings.entries.pwd);
     return (wl_status_t) WiFi.waitForConnectResult();
 }
 
@@ -73,7 +76,7 @@ void printLocalTime()
  */
 void webserver_loop(void){
   //HTTP
-  web_server.handleClient();
+  web_server.Loop();
 }
 // =====================================================
 // tosk run by Taskscheduler to handle WIFI  
@@ -93,6 +96,7 @@ Task * myTaskWebServer;
 
 //===================================================
 /** Load WLAN credentials from EEPROM */
+/*
 void loadCredentials() {
   EEPROM.begin(2048);
   size_t len = 0;
@@ -102,12 +106,14 @@ void loadCredentials() {
   len += password.length() + 1;
   String th_ip = EEPROM.readString(len); // load thermostat IP address. 
   len += th_ip.length() + 1;
-  port = EEPROM.readInt(len); // load port number
+  espNow->settings.entries.thermostat_port = EEPROM.readInt(len); // load port number
   len += 4; // a 32 bits Int occupies 4 bytes 
-  sleep_seconds = EEPROM.readInt(len); // load seconds to sleep between reading temperaiure
+  espNow->settings.entries.sleep_seconds = EEPROM.readInt(len); // load seconds to sleep between reading temperaiure
   len += 4;
   no_conn_count = EEPROM.readInt(len); // load number of no "WIFI connection" count
   len += 4;
+  MQTTMainTopic = EEPROM.readString(len); // load MQTTMainTopic
+  len += MQTTMainTopic.length() + 1;
   String ok = EEPROM.readString(len); // load ok. ok means that stored data are valid
   EEPROM.end();
 
@@ -117,30 +123,17 @@ void loadCredentials() {
     Serial.printf("ok=%s != OK -> set default settings\r\n",ok.c_str());
     ssid = "";
     password = "";
+    MQTTMainTopic = "thermometer";
     no_conn_count = 0;
     thermostat_IP.fromString("0.0.0.0");
     port = 65535;
   }
-  /* 
-  Serial.println("Recovered settings:");
-  Serial.println(ssid.length() > 0 ? ssid : "<no ssid>");
-  Serial.println(password.length() > 0 ? password : "<no password>");
-  Serial.printf("thermostat TCP address:port = %s:%d\r\n", th_ip.c_str(),port); 
-  Serial.printf("deep sleep seconds = %d\r\n", sleep_seconds); 
-  Serial.printf("number of unsuccessful WIFI connection attempts = %d\r\n", no_conn_count); 
-  */
+ 
 }
-
+*/
 /** Store WLAN credentials to EEPROM */
+/*
 void saveCredentials() {
-  /*
-  Serial.println("Saving settings ...");
-  
-  Serial.printf("ssid=%s\r\n",ssid.c_str());
-  Serial.printf("password=%s\r\n",password.c_str());
-  Serial.printf("Thermostat IP Address:%s\r\n", thermostat_IP.toString().c_str()); 
-  Serial.printf("number of unsuccessful WIFI connection attempts = %d\r\n", no_conn_count); 
-  */
   EEPROM.begin(2048);
   size_t len = 0;
   len += EEPROM.writeString(len, ssid) + 1;
@@ -149,11 +142,13 @@ void saveCredentials() {
   len += EEPROM.writeInt(len, port);
   len += EEPROM.writeInt(len, sleep_seconds );
   len += EEPROM.writeInt(len, no_conn_count );
+  len += EEPROM.writeString(len,MQTTMainTopic) + 1; 
   len += EEPROM.writeString(len,"OK") + 1; 
   EEPROM.commit();
   EEPROM.end();
 }
-
+*/
+/*
 void AccessPointSetup(){
 
   softAP_ssid = "ESP32_" + WiFi.macAddress();
@@ -163,7 +158,6 @@ void AccessPointSetup(){
       
     WiFi.mode(WIFI_MODE_AP);
     
-    /* You can remove the password parameter if you want the AP to be open. */
     WiFi.softAP(softAP_ssid.c_str(), softAP_password.c_str());
     delay(2000); 
     WiFi.softAPConfig(apIP, apIP, netMsk);
@@ -177,7 +171,7 @@ void AccessPointSetup(){
   Serial.print("    IP address: ");
   Serial.println(WiFi.softAPIP());
 }
-
+*/
 void WebServerSetup(){
 
     /* Setup web pages: root, wifi config pages, SO captive portal detectors and not found. */
@@ -189,10 +183,11 @@ void WebServerSetup(){
   web_server.on("/fwlink", handleRoot);  //Microsoft captive portal. Maybe not needed. Might be handled by notFound handler.
   web_server.onNotFound(handleNotFound);
   web_server.begin(); // Web server start
-  Serial.println("HTTP server started");
-  loadCredentials(); // Load WLAN credentials from network
+  //Serial.println("HTTP server started");
+  //loadCredentials(); // Load WLAN credentials from network
+  //espNow->settings.Load();
   //connect = ssid.length() > 0; // Request WLAN connect if there is a SSID
 
   //_PL("TaskScheduler WIFI Task");
-  myTaskWebServer = new TaskWebServer(30,&myScheduler,webserver_loop);
+  //myTaskWebServer = new TaskWebServer(30,&myScheduler,webserver_loop);
 }

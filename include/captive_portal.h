@@ -13,8 +13,6 @@
 #define _TASK_PRIORITY          // Support for layered scheduling priority
 #define _TASK_TIMEOUT           // Support for overall task timeout 
 #define _TASK_OO_CALLBACKS
-#include <TaskSchedulerDeclarations.h>
-extern Scheduler myScheduler;
 
 // ====== Access Point stuff ================
 /* Set these to your desired softAP credentials. They are not configurable at runtime */
@@ -29,11 +27,13 @@ extern String softAP_password;
 extern const char *myHostname;
 
 // settings
+/*
 extern String ssid;
 extern String password;
 extern IPAddress Thermostat_IP; 
 extern int no_conn_count;
-
+extern String MQTTMainTopic;
+*/
 // Web server
 //extern ESP8266WebServer web_server;
 extern WebServer web_server;
@@ -42,9 +42,6 @@ extern WebServer web_server;
 /* Soft AP network parameters */
 extern IPAddress apIP;
 extern IPAddress netMsk;
-
-/** Should I connect to WLAN asap? */
-extern boolean connect;
 
 /** Last time I tried to connect to WLAN */
 extern unsigned long lastConnectTry;

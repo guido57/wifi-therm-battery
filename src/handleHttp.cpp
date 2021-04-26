@@ -3,15 +3,31 @@
 #include <handleHttp.h>
 #include <main.h>
 #include <tools.h>
+#include <EspNow.h>
+#include <myMQTT.h>
+#define ESP32_RTOS  // Uncomment this line if you want to use the code with freertos only on the ESP32
+                    // Has to #be done before including "OTA.h"
+#include <OTA.h>
+
+
 
 #define S String
-
+/*
 extern IPAddress thermostat_IP;
 extern int port;
 extern int sleep_seconds;
+*/
+bool connect; // should connect ASAP
+
+void OTAhandle(){
+  if(WiFi.isConnected() == false)
+    return;
+  ArduinoOTA.handle();
+}
 // ==================================================================================================
 void handleRoot() {
 
+  
   if (captivePortal()) { // If captive portal redirect instead of displaying the page.
     return;
   }
@@ -28,7 +44,7 @@ void handleRoot() {
   if (web_server.client().localIP() == apIP) {
     Page += S("<p>You are connected through the soft AP: ") + softAP_ssid + S("</p>");
   } else {
-    Page += S("<p>You are connected through the wifi network: ") + ssid + S("</p>");
+    Page += S("<p>You are connected through the wifi network: ") + S(espNow->settings.entries.ssid) + S("</p>");
   }
   
   Page += S("<p>Temperature is ")  +  String(readTemperature()) + S(" ^C</p>");
@@ -39,11 +55,12 @@ void handleRoot() {
           );
   Page += S("Send temperature to:<br/>");
   Page += S("IP Address: <input type='text' name='th_IP' minlength='7' maxlength='15' size='15' pattern='^((\\d{1,2}|1\\d\\d|2[0-4]\\d|25[0-5])\\.){3}(\\d{1,2}|1\\d\\d|2[0-4]\\d|25[0-5])$' value='");
-  Page += thermostat_IP.toString() + S("'><br>");
-  Page += S("TCP port: <input type='text' name='port' value='" + String(port) + "'><br>" );
+  Page += S(espNow->settings.entries.thermostat_IP) + S("'><br>");
+  Page += S("TCP port: <input type='text' name='port' value='" + S(espNow->settings.entries.thermostat_port) + "'><br>" );
   Page += S("if it succeeds -> goto deep sleep after 10 seconds (to give time to change config!)<br/>");
   Page += S("otherwise      -> retry after 10 seconds<br/>");
-  Page += S("Deep sleep (seconds): <input type='text' name='sleep_secs' value='" + String(sleep_seconds) + "'><br>" );
+  Page += S("Deep sleep (seconds): <input type='text' name='sleep_secs' value='" + S(espNow->settings.entries.sleep_seconds) + "'><br>" );
+  Page += S("MQTT main topic: <input type='text' name='mqtt_main_topic' value='" + S(espNow->settings.entries.MQTTMainTopic)  + "'><br>" );
   Page += F(
             "<br /><input id='id_submit' type='submit' value='Save'/>"
             "</form>"
@@ -86,7 +103,7 @@ void handleWifi() {
   if (web_server.client().localIP() == apIP) {
     Page += String(F("<p>You are connected through the soft AP: ")) + softAP_ssid + F("</p>");
   } else {
-    Page += String(F("<p>You are connected through the wifi network: ")) + ssid + F("</p>");
+    Page += String(F("<p>You are connected through the wifi network: ")) + S(espNow->settings.entries.ssid) + F("</p>");
   }
   
   Page +=
@@ -103,7 +120,7 @@ void handleWifi() {
       "\r\n<br />"
       "<table><tr><th align='left'>WLAN config</th></tr>"
       "<tr><td>SSID ") +
-    ssid +
+    S(espNow->settings.entries.ssid) +
     F("</td></tr>"
       "<tr><td>IP ") +
     toStringIp(WiFi.localIP()) +
@@ -139,16 +156,17 @@ void handleWifi() {
 /** Handle the WLAN save form and redirect to WLAN config page again */
 void handleWifiSave() {
   //Serial.println("wifi save");
-  ssid = web_server.arg("n");
-  password = web_server.arg("p");
+  strcpy(espNow->settings.entries.ssid, web_server.arg("n").c_str());
+  strcpy(espNow->settings.entries.pwd, web_server.arg("p").c_str());
   web_server.sendHeader("Location", "wifi", true);
   web_server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   web_server.sendHeader("Pragma", "no-cache");
   web_server.sendHeader("Expires", "-1");
   web_server.send(302, "text/plain", "");    // Empty content inhibits Content-length header so we have to close the socket ourselves.
   web_server.client().stop(); // Stop is needed because we sent no content length
-  saveCredentials();
-  connect = ssid.length() > 0; // Request WLAN connect with new credentials if there is a SSID
+  //saveCredentials();
+  espNow->settings.Save();
+  connect = S(espNow->settings.entries.ssid).length() > 0; // Request WLAN connect with new credentials if there is a SSID
 }
 // ==================================================================================================
 /** Handle the WLAN save form and redirect to WLAN config page again */
@@ -160,12 +178,13 @@ void handleSettingsSave() {
 
   String th_IP = web_server.arg("th_IP");
   Serial.printf("Got thermostat IP Address %s\r\n",th_IP.c_str());
-  thermostat_IP.fromString(th_IP);
-  Serial.printf("thermostat_IP as string is %s\r\n",thermostat_IP.toString().c_str());
+  strcpy(espNow->settings.entries.thermostat_IP, th_IP.c_str());
+  Serial.printf("thermostat_IP as string is %s\r\n", espNow->settings.entries.thermostat_IP);
   String port_str = web_server.arg("port");  
   String sleep_secs_str = web_server.arg("sleep_secs");  
-  port = port_str.toInt();
-  sleep_seconds = sleep_secs_str.toInt();
+  strcpy(espNow->settings.entries.MQTTMainTopic, web_server.arg("mqtt_main_topic").c_str());
+  espNow->settings.entries.thermostat_port = port_str.toInt();
+  espNow->settings.entries.sleep_seconds = sleep_secs_str.toInt();
 
   web_server.sendHeader("Location", "/", true);
   web_server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -173,7 +192,8 @@ void handleSettingsSave() {
   web_server.sendHeader("Expires", "-1");
   web_server.send(302, "text/plain", "");    // Empty content inhibits Content-length header so we have to close the socket ourselves.
   web_server.client().stop(); // Stop is needed because we sent no content length
-  saveCredentials();
+  //saveCredentials();
+  espNow->settings.Save();
 }
 // ==================================================================================================
 void handleNotFound() {
@@ -198,3 +218,22 @@ void handleNotFound() {
   web_server.send(404, "text/plain", message);
 }
 // ==================================================================================================
+bool OTA_webserver_ready = false;
+void OTA_webserver_setup(){
+    if(OTA_webserver_ready == false){
+      Serial.printf("Starting OTA and WebServer setup at %lu millis\r\n",millis()); 
+       
+      // Setup OTA
+      setupOTANoConn("myNamePrefix");
+      Console.printf("Setup OTA after %lu millis\r\n",
+                      millis());
+
+      // start web_server
+      WebServerSetup();    
+      Console.printf("Web Server started after %lu millis\r\n",
+                      millis());
+    
+      OTA_webserver_ready = true;
+    }
+}
+

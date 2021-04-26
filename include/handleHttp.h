@@ -1,5 +1,7 @@
 #include <arduino.h>
 
+extern bool OTA_webserver_ready;
+void OTA_webserver_setup();
 
 /** Show the settings form */
 void handleRoot(); 
@@ -23,7 +25,9 @@ void handleHygrostat();
 
 void handleNotFound();
 
-extern void saveCredentials();
-extern void loadCredentials();
+//extern void saveCredentials();
+//extern void loadCredentials();
 extern float readTemperature();
 extern float readVoltage();
+
+extern void OTAhandle();
