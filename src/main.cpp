@@ -153,7 +153,7 @@ void loop()
       if(last_send_temp_msecs == 0L || millis() > last_send_temp_msecs + send_temp_interval_msecs )
       {
         // sed temperature and set repeat interval
-        if(200==sendTempVolt++ageToThermostat()){
+        if(200==sendTempVoltageToThermostat()){
           send_temp_interval_msecs = SUCCESSFUL_DEEP_SLEEP_SECS*1000;
           Console.printf("Send_temp_OK after %lu msecs -> repeat after %d seconds \r\n", 
                                         millis(),send_temp_interval_msecs/1000 );
